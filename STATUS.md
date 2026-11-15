@@ -46,7 +46,7 @@
     - Wrote production credentials to `.env` and `.env.production`.
 
   - **Phase 4 — End-to-End Verification & Platform Audit:**
-    - `python3 scripts/e2e-verify.py`: 6/6 browser E2E journeys passed with zero console/hydration errors, zero overflow, and strict 401 gate.
+    - `python3 scripts/e2e-verify.py`: 11/11 browser & REST API E2E journeys passed with zero console/hydration errors, zero overflow, Developer API key generation, zero personal Logto ID exposure, and strict 401 gate.
     - `node scripts/test-sensifai.mjs`: 7/7 platform audit tests passed with real live money deduction (−€0.050) and dynamic Gemini 3.8 Flash inference.
     - `node scripts/generate-media.mjs`: 8/8 visual assets present and verified.
     - `npm run build`: Standalone production build compiled with 0 TypeScript/Next.js errors.

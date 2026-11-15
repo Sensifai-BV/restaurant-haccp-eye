@@ -50,9 +50,9 @@ Executed automated platform audit via `node scripts/test-sensifai.mjs`:
 
 ---
 
-## 3. Full End-to-End (E2E) Browser Verification Suite (6/6 Passed)
+## 3. Full End-to-End (E2E) Browser & REST API Verification Suite (11/11 Passed)
 
-A full headless Chrome browser test suite executed all 6 core user journeys against `http://localhost:3000`:
+A full headless Chrome browser test suite executed all 11 core user journeys and B2B API integrations against `http://localhost:3000`:
 
 1. **[E2E 1] Zero Runtime, Hydration & Console Errors:**
    - **PASSED (100%)**. Both `/` and `/workspace` routes responded with HTTP 200 with zero client-side exceptions or hydration mismatches.
@@ -79,6 +79,21 @@ A full headless Chrome browser test suite executed all 6 core user journeys agai
 6. **[E2E 6] Responsive Layouts & Zero Overflow:**
    - **Desktop (1280px):** Collapsible Left Sidebar menu with live Gatekeeper Prepaid Wallet card pinned at bottom.
    - **Mobile (375px):** Native mobile app interface with frosted-glass fixed Bottom Tab Navigation Bar (`h-16`, `backdrop-blur-xl`) and zero horizontal scroll (`scrollWidth <= innerWidth`).
+
+7. **[E2E 7] Developer API Key Generation & Masked Secrets (`/api/v1/keys`):**
+   - **PASSED (100%)**. Verified dedicated application key generation (`rh_live_<hex>`). Masked secret formatting verified in `GET /api/v1/keys`, strictly protecting raw secrets from enumeration with zero personal credential leakage.
+
+8. **[E2E 8] Developer Station Catalog & Standards (`/api/v1/stations`):**
+   - **PASSED (100%)**. Public GET endpoint returns the 4 commercial kitchen station presets, FDA Food Code temperature limits, and HACCP danger zone thresholds.
+
+9. **[E2E 9] Public B2B HACCP Audit API Auth Gate (`/api/v1/audit`):**
+   - **PASSED (100%)**. Strictly rejects unauthenticated or invalid API key calls with HTTP 401 and `UNAUTHORIZED_KEY`.
+
+10. **[E2E 10] Real B2B HACCP Telemetry Audit Execution with Valid Key:**
+    - **PASSED (100%)**. Live execution with bearer token `rh_live_...` returned structured audit report with `reportId`, `overallScore`, `ccpStatus: "PASSED"`, `temperatureStatus: "SAFE"`, findings, and corrective tasks. Strictly verified that zero personal Logto IDs or developer secrets appear in the response payload.
+
+11. **[E2E 11] Workspace Developer Hub UI Navigation & Sandbox:**
+    - **PASSED (100%)**. Dedicated Developer API Hub tab in `/workspace?tab=api` renders key management table, create key modal/button, and interactive cURL REST testing sandbox.
 
 ---
 

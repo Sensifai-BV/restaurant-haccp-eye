@@ -19,6 +19,9 @@ import {
   ChevronRight,
   ChefHat,
   UtensilsCrossed,
+  Key,
+  Terminal,
+  Cpu,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -34,6 +37,7 @@ export default function LandingPage() {
           { label: "Compliance Proof", href: "#proof" },
           { label: "Capabilities", href: "#features" },
           { label: "Workflow", href: "#workflow" },
+          { label: "Developer API", href: "#api" },
           { label: "Pricing", href: "#pricing" },
         ]}
         ctaLabel="Launch Kitchen Audit"
@@ -398,6 +402,111 @@ export default function LandingPage() {
                 <p className="text-sm text-slate-600 leading-relaxed">
                   Audits sink sanitize buckets, cutting board segregation, chemical storage separation, and employee PPE, compiling a unified defense packet for official health visits.
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Developer & POS REST API Section */}
+      <section id="api" className="py-12 md:py-20 px-4 sm:px-6 max-w-6xl mx-auto w-full border-t border-slate-200/80">
+        <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
+          <div className="text-xs font-bold tracking-wider text-emerald-800 uppercase">
+            Enterprise & Developer REST API
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
+            Automate HACCP Auditing in Your POS or Tablets
+          </h2>
+          <p className="text-sm text-slate-600">
+            Embed real-time temperature log verification, prep label expiration spotting, and FDA Food Code CCP compliance directly into kitchen display systems, temperature probes, and multi-unit restaurant portals.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-5 space-y-4">
+            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                  <Key className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Dedicated Cryptographic Keys</h3>
+                  <p className="text-xs text-slate-500">App-scoped tokens (rh_live_...) with zero personal user credential exposure.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                  <Cpu className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Sub-Second Telemetry Execution</h3>
+                  <p className="text-xs text-slate-500">Benchmark Walk-In Coolers, Salad Prep Rails, Seafood Bars, and Dish Machines in milliseconds.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                  <Terminal className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Structured JSON Output</h3>
+                  <p className="text-xs text-slate-500">Full CCP compliance status, temperature flags, findings, and staff corrective tasks.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Link
+                href="/workspace?tab=api"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-xs transition-colors"
+              >
+                <span>Launch API Hub & Mint Keys</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="lg:col-span-7 rounded-2xl bg-slate-900 text-slate-100 border border-slate-800 overflow-hidden shadow-xl">
+            <div className="h-10 bg-slate-950 border-b border-slate-800 px-4 flex items-center justify-between text-xs font-mono text-slate-400">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
+                <span className="ml-2 text-slate-300 font-semibold">POST /api/v1/audit</span>
+              </div>
+              <span className="text-[11px] text-slate-500">cURL REST Example</span>
+            </div>
+
+            <div className="p-5 font-mono text-xs space-y-4 overflow-x-auto">
+              <div>
+                <span className="text-slate-500"># Send kitchen station photo and probe telemetry</span>
+                <div className="text-emerald-400 mt-1">curl -X POST https://restaurant-haccp-eye.sensifai.com/api/v1/audit \</div>
+                <div className="pl-4 text-slate-300">-H &quot;Authorization: Bearer rh_live_sample_key&quot; \</div>
+                <div className="pl-4 text-slate-300">-H &quot;Content-Type: application/json&quot; \</div>
+                <div className="pl-4 text-emerald-300">-d &apos;{JSON.stringify({ stationName: "Walk-In Cooler Line", measuredTemp: 37.8, unit: "°F" }, null, 0)}&apos;</div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800">
+                <span className="text-slate-500"># Sample JSON Response (HTTP 200 OK)</span>
+                <div className="text-slate-300 mt-1 text-[11px] leading-relaxed whitespace-pre font-mono">
+{`{
+  "success": true,
+  "reportId": "HACCP-20261115-4819",
+  "stationName": "Walk-In Cooler Line",
+  "overallScore": 96,
+  "ccpStatus": "PASSED",
+  "temperatureStatus": "SAFE",
+  "findings": [
+    { "type": "Temperature Telemetry", "description": "37.8°F conforms with FDA Food Code § 3-501.16", "confidence": 0.98 }
+  ],
+  "correctiveActions": []
+}`}
+                </div>
               </div>
             </div>
           </div>

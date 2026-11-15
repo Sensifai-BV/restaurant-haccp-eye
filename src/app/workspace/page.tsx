@@ -96,6 +96,19 @@ export default function WorkspacePage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestedTab = urlParams.get("tab");
+      if (
+        requestedTab === "api" ||
+        requestedTab === "custom" ||
+        requestedTab === "pack" ||
+        requestedTab === "studio"
+      ) {
+        setActiveTab(requestedTab as any);
+      }
+    }
+
     fetch("/api/auth/me", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => setSession(data))

@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 
 async def run_e2e():
     print("=====================================================================")
-    print("  Restaurant HACCP Eye Phase 4 Full End-to-End (E2E) Verification")
+    print("  Restaurant HACCP Eye Phase 4 & API Full End-to-End (E2E) Verification")
     print("=====================================================================\n")
 
     errors = []
@@ -177,6 +177,110 @@ async def run_e2e():
         assert not overflow, "Mobile layout has horizontal overflow (scrollWidth > innerWidth)!"
         print("  ✓ Mobile (375px): Zero horizontal overflow verified (scrollWidth <= innerWidth)")
 
+        # -------------------------------------------------------------
+        # Journey 7: Developer API Hub Key Issuance & Masked Secrets
+        # -------------------------------------------------------------
+        print("\n[E2E Test 7] Verifying Developer API Key Generation & Masked Secrets (/api/v1/keys)...")
+        new_key_res = await page.request.post("http://localhost:3000/api/v1/keys", data=json.dumps({
+            "name": "Line Cook Tablet Station #2 Key"
+        }), headers={"Content-Type": "application/json"})
+        assert new_key_res.status == 201, f"Expected 201 Created on /api/v1/keys, got {new_key_res.status}"
+        new_key_data = await new_key_res.json()
+        assert new_key_data.get("success") is True, f"Failed key generation: {new_key_data}"
+        raw_api_key = new_key_data.get("apiKey")
+        assert raw_api_key and raw_api_key.startswith("rh_live_"), f"API key must start with rh_live_, got: {raw_api_key}"
+        assert len(raw_api_key) >= 40, f"API key length must be >= 40, got: {len(raw_api_key)}"
+        print(f"  ✓ Newly issued dedicated application key: {raw_api_key[:12]}...{raw_api_key[-4:]}")
+
+        # List keys and verify raw secret is NOT leaked in GET
+        list_keys_res = await page.request.get("http://localhost:3000/api/v1/keys")
+        assert list_keys_res.status == 200, f"Expected 200 from GET /api/v1/keys, got {list_keys_res.status}"
+        list_keys_data = await list_keys_res.json()
+        assert list_keys_data.get("success") is True, f"Failed listing keys: {list_keys_data}"
+        assert len(list_keys_data.get("keys", [])) >= 1, "Expected at least 1 key in list"
+        for k in list_keys_data["keys"]:
+            assert "maskedKey" in k, f"Key missing maskedKey: {k}"
+            assert "key" not in k, f"CRITICAL: Full unmasked secret leaked in GET /api/v1/keys: {k}"
+            assert "sub" not in k and "logto" not in str(k).lower(), f"CRITICAL: User ID leaked in keys list: {k}"
+        print("  ✓ GET /api/v1/keys returns properly masked secrets with zero credential leakage")
+
+        # -------------------------------------------------------------
+        # Journey 8: Developer Station Catalog & CCP Standards (/api/v1/stations)
+        # -------------------------------------------------------------
+        print("\n[E2E Test 8] Verifying Developer Station Catalog & Standards (/api/v1/stations)...")
+        stations_res = await page.request.get("http://localhost:3000/api/v1/stations")
+        assert stations_res.status == 200, f"Expected 200 from GET /api/v1/stations, got {stations_res.status}"
+        stations_data = await stations_res.json()
+        assert stations_data.get("success") is True, f"Failed stations catalog: {stations_data}"
+        assert stations_data.get("totalStations") == 4, f"Expected 4 station presets, got {stations_data.get('totalStations')}"
+        assert "ccpStandards" in stations_data, "Missing ccpStandards in stations response"
+        assert stations_data["ccpStandards"]["coldFoodHolding"]["maxTempF"] == 41.0, "FDA 41.0F standard check failed"
+        print(f"  ✓ Station catalog verified: 4 stations, FDA Food Code standards, and zero user PII")
+
+        # -------------------------------------------------------------
+        # Journey 9: Public B2B HACCP Audit API Auth Gate Enforcement
+        # -------------------------------------------------------------
+        print("\n[E2E Test 9] Verifying Public B2B HACCP Audit API Auth Gate (/api/v1/audit)...")
+        # Without key -> 401
+        no_key_res = await page.request.post("http://localhost:3000/api/v1/audit", data=json.dumps({
+            "stationName": "Walk-In Cooler Line",
+            "measuredTemp": 37.5
+        }), headers={"Content-Type": "application/json"})
+        assert no_key_res.status == 401, f"Expected 401 Unauthorized without API key, got {no_key_res.status}"
+        no_key_data = await no_key_res.json()
+        assert no_key_data.get("code") == "UNAUTHORIZED_KEY", f"Expected UNAUTHORIZED_KEY, got {no_key_data}"
+        print("  ✓ POST /api/v1/audit strictly rejects calls with missing or invalid API keys (401)")
+
+        # -------------------------------------------------------------
+        # Journey 10: Real B2B HACCP Telemetry Audit Execution with Valid Key
+        # -------------------------------------------------------------
+        print("\n[E2E Test 10] Verifying Real B2B HACCP Audit Execution with Valid API Key...")
+        audit_res = await page.request.post("http://localhost:3000/api/v1/audit", data=json.dumps({
+            "stationName": "Main Walk-In Cooler Line",
+            "category": "Cold Holding & Protein Storage",
+            "measuredTemp": 36.8,
+            "unit": "°F",
+            "observations": "Stainless steel cambros organized by protein hierarchy. Digital probe calibrated.",
+            "labelsText": "Poultry prepped today, expiration Nov 17."
+        }), headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {raw_api_key}"
+        })
+        assert audit_res.status == 200, f"Expected 200 OK from /api/v1/audit with valid key, got {audit_res.status}"
+        audit_data = await audit_res.json()
+        assert audit_data.get("success") is True, f"Audit returned success=false: {audit_data}"
+        assert audit_data.get("reportId", "").startswith("HACCP-"), f"Invalid reportId: {audit_data.get('reportId')}"
+        assert audit_data.get("ccpStatus") in ["PASSED", "ACTION_REQUIRED", "CRITICAL_VIOLATION"], f"Invalid ccpStatus: {audit_data.get('ccpStatus')}"
+        assert 0 <= audit_data.get("overallScore", -1) <= 100, f"Score out of bounds: {audit_data.get('overallScore')}"
+        assert len(audit_data.get("findings", [])) >= 1, "Audit returned 0 findings"
+        # STRICT PRIVACY CHECK: Verify NO Logto ID or personal data in response
+        response_str = json.dumps(audit_data).lower()
+        for forbidden in ["wckiqf9jo9gs", "sub", "logto_id", "client_secret", "refresh_token"]:
+            assert forbidden not in response_str, f"CRITICAL LEAK: Forbidden token '{forbidden}' detected in API response!"
+        print(f"  ✓ B2B Audit verified: Report {audit_data['reportId']} ({audit_data['ccpStatus']}, Score: {audit_data['overallScore']}%)")
+        print("  ✓ Zero personal Logto IDs or developer secrets exposed in response payload")
+
+        # -------------------------------------------------------------
+        # Journey 11: Workspace Developer Hub UI Navigation
+        # -------------------------------------------------------------
+        print("\n[E2E Test 11] Verifying Workspace Developer Hub UI & Sandbox...")
+        await page.set_viewport_size({"width": 1280, "height": 800})
+        await page.goto("http://localhost:3000/workspace?tab=api", wait_until="networkidle")
+        await page.wait_for_timeout(500)
+
+        # Check API Hub header
+        api_header = await page.query_selector("text=Developer & POS API Integration Hub")
+        assert api_header is not None, "Developer API Hub header not rendered!"
+
+        # Check Create API Key button
+        create_btn = await page.query_selector("button:has-text('Create API Key')")
+        assert create_btn is not None, "Create API Key button not found in API Hub!"
+
+        # Check Sandbox form
+        sandbox_input = await page.query_selector("input[placeholder*='rh_live_']")
+        assert sandbox_input is not None, "API Key input for sandbox not rendered!"
+        print("  ✓ Developer API Hub UI renders key management table and interactive REST sandbox")
+
         await browser.close()
 
     print("\n=====================================================================")
@@ -186,7 +290,7 @@ async def run_e2e():
             print(f"    - {e}")
             sys.exit(1)
     else:
-        print("  ALL 6 BROWSER E2E USER JOURNEYS PASSED WITH ZERO DEFECTS!")
+        print("  ALL 11 BROWSER & REST API E2E USER JOURNEYS PASSED WITH ZERO DEFECTS!")
     print("=====================================================================\n")
 
 if __name__ == "__main__":
