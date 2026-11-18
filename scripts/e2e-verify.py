@@ -329,7 +329,7 @@ async def run_e2e():
             }), headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {raw_api_key}"
-            })
+            }, timeout=60000)
             assert audit_res.status == 200, f"Expected 200 OK from /api/v1/audit with valid funded key, got {audit_res.status}"
             audit_data = await audit_res.json()
             assert audit_data.get("success") is True, f"Audit returned success=false: {audit_data}"

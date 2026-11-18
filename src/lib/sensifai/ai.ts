@@ -225,7 +225,7 @@ export async function callSensifaiAI(options: SensifaiChatOptions): Promise<{
           },
           body: JSON.stringify(payload),
           cache: "no-store",
-          signal: AbortSignal.timeout(45000),
+          signal: AbortSignal.timeout(20000),
         });
 
         if (res.ok) {
