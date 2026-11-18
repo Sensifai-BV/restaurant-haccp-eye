@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { gatekeeper } from "./gatekeeper";
 
-export const DEFAULT_PAY_AS_GO_PRICE_ID = "01a134b2-b6b5-7063-b05b-68b622ecd7b9";
+export const DEFAULT_PAY_AS_GO_PRICE_ID = "01a0a399-5464-7735-abe8-6da659a3afbb";
 
 export interface UsageEvent {
   identifier: string;
@@ -204,7 +204,7 @@ export class UsageService {
 
     // Poll Gatekeeper briefly for NATS JetStream worker ledger commit
     let postWallet = preWallet;
-    const waitIntervals = [250, 500, 800];
+    const waitIntervals = [350, 650, 950, 1200];
     for (const waitMs of waitIntervals) {
       await new Promise((r) => setTimeout(r, waitMs));
       postWallet = await this.checkWalletBalance(logtoUserId);
@@ -227,7 +227,7 @@ export class UsageService {
         usage: usageUnits,
         timestamp: Math.floor(Date.now() / 1000),
       });
-      for (const waitMs of [300, 600]) {
+      for (const waitMs of [400, 800]) {
         await new Promise((r) => setTimeout(r, waitMs));
         postWallet = await this.checkWalletBalance(logtoUserId);
         if (postWallet.balance < preWallet.balance) {
