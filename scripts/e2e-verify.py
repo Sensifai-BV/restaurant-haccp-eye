@@ -361,7 +361,7 @@ async def run_e2e():
             assert api_header is not None, "Developer API Hub header not rendered!"
 
             # AuthGateCard check: Unauthenticated guests should see sign in prompt
-            auth_gate = await page.query_selector("text=Authentication Required")
+            auth_gate = await page.query_selector("text=Sensifai Account Required") or await page.query_selector("text=Sign In")
             assert auth_gate is not None, "AuthGateCard not displayed for unauthenticated guest on /workspace?tab=api!"
             print("  ✓ Guest on /workspace?tab=api sees AuthGateCard protecting API key generation")
 
