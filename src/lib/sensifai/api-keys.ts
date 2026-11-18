@@ -7,6 +7,7 @@ export interface ApiKeyRecord {
   name: string;
   key: string;
   maskedKey: string;
+  ownerId: string; // Strictly internal on server; never exposed to clients
   createdAt: string;
   lastUsedAt: string | null;
   status: "active" | "revoked";
@@ -42,9 +43,14 @@ function persistKeys(keys: ApiKeyRecord[]) {
 /**
  * Generates a brand-new, cryptographically secure application API key.
  * Format: rh_live_<32 hex chars>
- * Zero personal Logto IDs, personal tokens, or hardcoded credentials.
+ * Strictly ties the key to the authenticated owner's Logto account on the server,
+ * while ensuring zero personal Logto IDs or developer secrets are ever exposed in public responses.
  */
-export function createNewApiKey(name = "Kitchen Station HACCP Audit Key"): ApiKeyRecord {
+export function createNewApiKey(name = "Kitchen Station HACCP Audit Key", ownerId: string): ApiKeyRecord {
+  if (!ownerId) {
+    throw new Error("Owner ID is required to mint an application API key.");
+  }
+
   const keys = loadStoredKeys();
   const randomBytes = crypto.randomBytes(24).toString("hex");
   const rawKey = `rh_live_${randomBytes}`;
@@ -55,6 +61,7 @@ export function createNewApiKey(name = "Kitchen Station HACCP Audit Key"): ApiKe
     name,
     key: rawKey,
     maskedKey,
+    ownerId,
     createdAt: new Date().toISOString(),
     lastUsedAt: null,
     status: "active",
@@ -65,8 +72,12 @@ export function createNewApiKey(name = "Kitchen Station HACCP Audit Key"): ApiKe
   return newKey;
 }
 
-export function listApiKeys(): ApiKeyRecord[] {
-  return loadStoredKeys();
+export function listApiKeys(ownerId?: string): ApiKeyRecord[] {
+  const keys = loadStoredKeys();
+  if (ownerId) {
+    return keys.filter((k) => k.ownerId === ownerId);
+  }
+  return keys;
 }
 
 export function validateApiKey(rawKey: string): ApiKeyRecord | null {
@@ -81,9 +92,9 @@ export function validateApiKey(rawKey: string): ApiKeyRecord | null {
   return null;
 }
 
-export function revokeApiKey(id: string): boolean {
+export function revokeApiKey(id: string, ownerId?: string): boolean {
   const keys = loadStoredKeys();
-  const target = keys.find((k) => k.id === id);
+  const target = keys.find((k) => k.id === id && (!ownerId || k.ownerId === ownerId));
   if (target) {
     target.status = "revoked";
     persistKeys(keys);

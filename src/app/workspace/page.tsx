@@ -86,10 +86,15 @@ export default function WorkspacePage() {
 
   const loadApiKeys = () => {
     fetch("/api/v1/keys", { cache: "no-store" })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) return { success: false, keys: [] };
+        return res.json();
+      })
       .then((d) => {
         if (d.success && Array.isArray(d.keys)) {
           setApiKeys(d.keys);
+        } else {
+          setApiKeys([]);
         }
       })
       .catch((e) => console.error("Error loading keys:", e));
@@ -111,9 +116,15 @@ export default function WorkspacePage() {
 
     fetch("/api/auth/me", { cache: "no-store" })
       .then((res) => res.json())
-      .then((data) => setSession(data))
+      .then((data) => {
+        setSession(data);
+        if (data.authenticated) {
+          loadApiKeys();
+        } else {
+          setApiKeys([]);
+        }
+      })
       .catch(() => setSession({ authenticated: false, user: null }));
-    loadApiKeys();
   }, []);
 
   const handleGenerateKey = async () => {
@@ -1008,105 +1019,125 @@ export default function WorkspacePage() {
                 </p>
               </div>
 
-              {/* Generate Key Input */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  value={newKeyName}
-                  onChange={(e) => setNewKeyName(e.target.value)}
-                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-emerald-600"
-                  placeholder="e.g. Station 2 Kitchen Tablet Key"
-                />
-                <button
-                  type="button"
-                  onClick={handleGenerateKey}
-                  disabled={generatingKey}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-xs transition-colors flex items-center justify-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>{generatingKey ? "Creating..." : "Create API Key"}</span>
-                </button>
-              </div>
-
-              {/* Newly Generated Key Notice */}
-              {generatedKey && (
-                <div className="mt-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-2">
-                  <div className="font-bold flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    <span>Your New Dedicated API Key (Copy Now — Not Shown Again)</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 p-2 rounded bg-white border border-emerald-300 font-mono text-slate-900">
-                    <span className="truncate">{generatedKey}</span>
+              {/* Authentication Protection Gate */}
+              {!session?.authenticated ? (
+                <div className="pt-2">
+                  <AuthGateCard
+                    authenticated={false}
+                    primaryColor={APP_METADATA.primaryColor}
+                    priceEur={0.05}
+                    featureTitle="Generate B2B API Keys & POS Hardware Tokens"
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Generate Key Input */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      value={newKeyName}
+                      onChange={(e) => setNewKeyName(e.target.value)}
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-emerald-600"
+                      placeholder="e.g. Station 2 Kitchen Tablet Key"
+                    />
                     <button
                       type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(generatedKey);
-                        setCopiedKey(true);
-                        setTimeout(() => setCopiedKey(false), 2000);
-                      }}
-                      className="px-2.5 py-1 rounded bg-emerald-600 text-white font-bold text-[11px] shrink-0"
+                      onClick={handleGenerateKey}
+                      disabled={generatingKey}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-xs transition-colors flex items-center justify-center gap-2"
                     >
-                      {copiedKey ? "Copied!" : "Copy"}
+                      <Plus className="h-4 w-4" />
+                      <span>{generatingKey ? "Creating..." : "Create API Key"}</span>
                     </button>
                   </div>
-                </div>
-              )}
 
-              {/* Key List Table */}
-              <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold">
-                    <tr>
-                      <th className="p-3">Key Name</th>
-                      <th className="p-3">Masked Secret</th>
-                      <th className="p-3">Created</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {apiKeys.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="p-4 text-center text-slate-400">
-                          No developer keys generated yet. Create one above to test the REST API.
-                        </td>
-                      </tr>
-                    ) : (
-                      apiKeys.map((k) => (
-                        <tr key={k.id} className="hover:bg-slate-50/50">
-                          <td className="p-3 font-semibold text-slate-900">{k.name}</td>
-                          <td className="p-3 font-mono text-slate-600">{k.maskedKey}</td>
-                          <td className="p-3 text-slate-400 text-[11px]">
-                            {new Date(k.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="p-3">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                k.status === "active"
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : "bg-slate-200 text-slate-600"
-                              }`}
-                            >
-                              {k.status}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right">
-                            {k.status === "active" && (
-                              <button
-                                type="button"
-                                onClick={() => handleRevokeKey(k.id)}
-                                className="text-rose-600 hover:text-rose-800 font-semibold text-xs"
-                              >
-                                Revoke
-                              </button>
-                            )}
-                          </td>
+                  {keyNoticeMsg && (
+                    <div className="mt-3 p-3 rounded-xl bg-slate-100 text-xs text-slate-700">
+                      {keyNoticeMsg}
+                    </div>
+                  )}
+
+                  {/* Newly Generated Key Notice */}
+                  {generatedKey && (
+                    <div className="mt-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-2">
+                      <div className="font-bold flex items-center gap-1.5">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <span>Your New Dedicated API Key (Copy Now — Not Shown Again)</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 p-2 rounded bg-white border border-emerald-300 font-mono text-slate-900">
+                        <span className="truncate">{generatedKey}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(generatedKey);
+                            setCopiedKey(true);
+                            setTimeout(() => setCopiedKey(false), 2000);
+                          }}
+                          className="px-2.5 py-1 rounded bg-emerald-600 text-white font-bold text-[11px] shrink-0"
+                        >
+                          {copiedKey ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Key List Table */}
+                  <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-500 font-semibold">
+                        <tr>
+                          <th className="p-3">Key Name</th>
+                          <th className="p-3">Masked Secret</th>
+                          <th className="p-3">Created</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3 text-right">Action</th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {apiKeys.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-4 text-center text-slate-400">
+                              No developer keys generated yet. Create one above to test the REST API.
+                            </td>
+                          </tr>
+                        ) : (
+                          apiKeys.map((k) => (
+                            <tr key={k.id} className="hover:bg-slate-50/50">
+                              <td className="p-3 font-semibold text-slate-900">{k.name}</td>
+                              <td className="p-3 font-mono text-slate-600">{k.maskedKey}</td>
+                              <td className="p-3 text-slate-400 text-[11px]">
+                                {new Date(k.createdAt).toLocaleDateString()}
+                              </td>
+                              <td className="p-3">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    k.status === "active"
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : "bg-slate-200 text-slate-600"
+                                  }`}
+                                >
+                                  {k.status}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right">
+                                {k.status === "active" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRevokeKey(k.id)}
+                                    className="text-rose-600 hover:text-rose-800 font-semibold text-xs"
+                                  >
+                                    Revoke
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Interactive API Sandbox */}

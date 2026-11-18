@@ -3,6 +3,7 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey } from "@/lib/sensifai/api-keys";
+import { usageService } from "@/lib/sensifai/usage";
 import { callSensifaiAIJson } from "@/lib/sensifai/ai";
 import { HACCP_PRESETS } from "@/lib/presets";
 
@@ -42,6 +43,50 @@ export async function POST(req: NextRequest) {
         },
         {
           status: 401,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+
+    const sub = validKeyRecord.ownerId;
+    if (!sub) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "API key is not linked to an active account. Please generate a new key while logged in.",
+          code: "UNAUTHORIZED_KEY",
+        },
+        {
+          status: 401,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+
+    // Atomic Wallet Check + Gatekeeper Usage Deduction (€0.05 / request)
+    // Strictly enforces that callers must have sufficient prepaid balance to execute audits.
+    const deduction = await usageService.deductAndSyncWallet({
+      logtoUserId: sub,
+      operation: "b2b_api_audit",
+      usageUnits: 1,
+    });
+
+    if (!deduction.success && deduction.status === 402) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Prepaid wallet balance insufficient. The account owning this API key requires at least €0.05 to execute audits.",
+          code: "PAYMENT_REQUIRED",
+          requiresTopUp: true,
+          currentBalance: deduction.wallet.balance,
+          topUpUrl: deduction.topUpUrl || "https://sensifai.com/marketplace",
+        },
+        {
+          status: 402,
           headers: {
             "Access-Control-Allow-Origin": "*",
           },
@@ -185,6 +230,11 @@ Return STRICT JSON ONLY matching:
         summary,
         findings,
         correctiveActions,
+        billing: {
+          deductedEur: deduction.deductedAmount,
+          walletBalance: deduction.wallet.balance,
+          currency: deduction.wallet.currency,
+        },
         meta: {
           evaluatedAt: new Date().toISOString(),
           engine: "Sensifai Vision Core (Multimodal Food Safety)",
